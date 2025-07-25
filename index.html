@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Image Upload App</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Image Upload Application</h1>
+
+      <!-- Image Carousel -->
+      <div class="carousel-container" id="carouselContainer">
+        <div class="carousel" id="carousel">
+          <div class="no-images">
+            <p>No image uploaded yet.</p>
+          </div>
+        </div>
+        <button
+          class="carousel-btn prev-btn"
+          id="prevBtn"
+          onclick="previousImage()"
+        >
+          ‹
+        </button>
+        <button
+          class="carousel-btn next-btn"
+          id="nextBtn"
+          onclick="nextImage()"
+        >
+          ›
+        </button>
+      </div>
+
+      <!-- Upload Section -->
+      <div class="upload-section">
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-content">
+            <div class="upload-icon">📁</div>
+            <p>Drag your image here</p>
+            <input type="file" id="fileInput" accept="image/*" multiple />
+          </div>
+        </div>
+        <div class="upload-progress" id="uploadProgress">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </div>
+
+      <!-- Uploaded Images Grid -->
+      <div class="images-grid" id="imagesGrid">
+        <h3>Uploaded Images</h3>
+        <div class="grid-container" id="gridContainer">
+          <!-- Images will be added here dynamically -->
+        </div>
+      </div>
+    </div>
+
+    <script src="index.js"></script>
+  </body>
+</html>
