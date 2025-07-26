@@ -1,4 +1,5 @@
 // Global variables
+
 let uploadedImages = [];
 let currentImageIndex = 0;
 
