@@ -4,13 +4,13 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+permissions:
+  id-token: write
+  contents: read
 
 env:
   AWS_REGION: eu-west-2
 
-  permissions:
-  id-token: write
-  contents: read
 jobs:
   AssumeRoleAndCallIdentity:
     runs-on: ubuntu-latest
