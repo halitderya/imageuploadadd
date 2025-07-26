@@ -5,7 +5,7 @@ variable "s3_bucket_name" {
 
 variable "aws_region"{
     description="AWS Region"
-    type="string"
+    type=       string
 }
 
 variable "environment" {
