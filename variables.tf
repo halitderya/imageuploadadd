@@ -6,6 +6,7 @@ variable "s3_bucket_name" {
 variable "aws_region"{
     description="AWS Region"
     type=       string
+    default     = "eu-west-2"
 }
 
 variable "environment" {
