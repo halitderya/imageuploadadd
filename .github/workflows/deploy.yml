@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+
 permissions:
   id-token: write
   contents: read
@@ -23,7 +24,3 @@ jobs:
           role-to-assume: arn:aws:iam::871762481872:role/GitHubAction-AssumeRoleWithAction
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
-      # Hello from AWS: WhoAmI
-      - name: Sts GetCallerIdentity
-        run: |
-          aws sts get-caller-identity
