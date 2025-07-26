@@ -8,7 +8,7 @@ terraform {
   required_version = ">= 1.3.0"
 
   backend "s3" {
-    bucket = "my-terraform-state-bucket"
+    bucket = "halit-tfstate-uk-2025"
     key    = "imageuploadapp/terraform.tfstate"
     region = "eu-west-2"
   }
