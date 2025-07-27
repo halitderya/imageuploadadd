@@ -1,5 +1,7 @@
 // Global variables
 
+const BUCKET_NAME = "halit-imageupload-app-2025";
+
 let uploadedImages = [];
 let currentImageIndex = 0;
 
@@ -14,10 +16,16 @@ const gridContainer = document.getElementById("gridContainer");
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 
-// Initialize the application
+const AWS_LAMBDA_UPLOAD_ENDPOINT =
+  "https://kiyjgvylvlgriqo2r6rr4x2bh40zdjdg.lambda-url.eu-west-2.on.aws/";
+
+const AWS_LAMBDA_LIST_ENDPOINT =
+  "https://3fpatjuyidjsbhribcnaogf5em0beisk.lambda-url.eu-west-2.on.aws/";
+
 document.addEventListener("DOMContentLoaded", function () {
   setupEventListeners();
   updateCarouselButtons();
+  loadImageList(); // Auto-load existing images
 });
 
 // Setup event listeners
@@ -76,41 +84,313 @@ function processFiles(files) {
   showProgress();
 
   let processedCount = 0;
+  let successCount = 0;
   const totalFiles = files.length;
 
   files.forEach((file, index) => {
-    // Simulate upload progress
-    setTimeout(() => {
-      processFile(file);
-      processedCount++;
+    // Her dosya için delay ekle (rate limiting için)
+    setTimeout(async () => {
+      try {
+        await processFileAsync(file);
+        successCount++;
+      } catch (error) {
+        console.error(`Error processing ${file.name}:`, error);
+      }
 
+      processedCount++;
       const progress = (processedCount / totalFiles) * 100;
       updateProgress(progress);
 
       if (processedCount === totalFiles) {
-        setTimeout(hideProgress, 500);
+        setTimeout(() => {
+          hideProgress();
+          showBatchUploadResult(successCount, totalFiles);
+        }, 500);
       }
-    }, index * 200);
+    }, index * 1000); // 1 saniye delay (rate limiting)
   });
 }
 
-// Process individual file
+// Process individual file - AWS Lambda ile
 function processFile(file) {
   const reader = new FileReader();
 
-  reader.onload = function (e) {
-    const imageData = {
-      id: Date.now() + Math.random(),
-      src: e.target.result,
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    };
+  reader.onload = async function (e) {
+    try {
+      // Lambda'ya gönderilecek data
+      const uploadData = {
+        image: e.target.result, // base64 format (data:image/jpeg;base64,... dahil)
+        imageData: e.target.result, // Lambda compatibility için ek field
+        fileName: `${Date.now()}_${file.name}`,
+        contentType: file.type,
+      };
 
-    addImageToCollection(imageData);
+      // Lambda fonksiyonuna gönder
+      const response = await uploadToAWS(uploadData);
+
+      if (response.success) {
+        const imageData = {
+          id: Date.now() + Math.random(),
+          src: e.target.result, // Local preview için
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          awsFileName: response.fileName, // AWS'deki dosya adı
+          uploaded: true,
+        };
+
+        addImageToCollection(imageData);
+        showSuccessMessage(`${file.name} uploaded successfully!`);
+      } else {
+        showErrorMessage(`Failed to upload ${file.name}: ${response.error}`);
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      showErrorMessage(`Error uploading ${file.name}`);
+    }
   };
 
   reader.readAsDataURL(file);
+}
+
+// AWS Lambda'ya upload fonksiyonu
+async function uploadToAWS(uploadData) {
+  try {
+    // Validate upload data
+    if (!uploadData.image || !uploadData.fileName) {
+      throw new Error("Missing required upload data");
+    }
+
+    console.log("Uploading to AWS:", {
+      fileName: uploadData.fileName,
+      contentType: uploadData.contentType,
+      imageSize: uploadData.image.length,
+      endpoint: AWS_LAMBDA_UPLOAD_ENDPOINT,
+    });
+
+    const response = await fetch(AWS_LAMBDA_UPLOAD_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      mode: "cors",
+      body: JSON.stringify(uploadData),
+    });
+
+    if (!response.ok) {
+      let errorText;
+      try {
+        const errorJson = await response.json();
+        errorText =
+          errorJson.error || errorJson.message || `HTTP ${response.status}`;
+      } catch {
+        errorText = (await response.text()) || `HTTP ${response.status}`;
+      }
+      throw new Error(`Upload failed: ${errorText}`);
+    }
+
+    const result = await response.json();
+
+    // Lambda response formatını kontrol et
+    console.log("Upload Response:", result); // Debug için
+
+    return {
+      success: true,
+      fileName: result.fileName || result.key || uploadData.fileName,
+      message: result.message || "Upload successful",
+      imageUrl: result.imageUrl,
+    };
+  } catch (error) {
+    console.error("AWS Upload Error:", error);
+    return {
+      success: false,
+      error: error.message,
+    };
+  }
+}
+
+// Load image list from AWS Lambda (S3)
+async function loadImageList() {
+  try {
+    console.log("Loading image list from:", AWS_LAMBDA_LIST_ENDPOINT);
+
+    const response = await fetch(AWS_LAMBDA_LIST_ENDPOINT, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+      },
+      mode: "cors",
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image list: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    console.log("AWS Response:", result); // Debug için
+
+    // AWS response structure'ına göre handle et
+    let imageFiles = [];
+    if (result.files && Array.isArray(result.files)) {
+      imageFiles = result.files.map((file) => file.key);
+    } else if (Array.isArray(result.images)) {
+      imageFiles = result.images;
+    } else if (Array.isArray(result)) {
+      imageFiles = result;
+    }
+
+    if (imageFiles.length > 0) {
+      uploadedImages = imageFiles.map((filename, index) => ({
+        id: Date.now() + index,
+        src: `https://${BUCKET_NAME}.s3.eu-west-2.amazonaws.com/${filename}`,
+        name: filename.replace(/^upload_\d+_/, ""), // Prefix'i temizle
+        size: 0,
+        type: "image/jpeg",
+        awsFileName: filename,
+        uploaded: true,
+      }));
+
+      rebuildGrid();
+      updateCarousel();
+      updateCarouselButtons();
+      showSuccessMessage(`${imageFiles.length} images loaded from S3.`);
+    } else {
+      showSuccessMessage("No images found in S3 bucket.");
+      // Empty state göster
+      uploadedImages = [];
+      rebuildGrid();
+      updateCarousel();
+      updateCarouselButtons();
+    }
+  } catch (error) {
+    console.error("Error loading image list:", error);
+    showErrorMessage(`Error loading image list: ${error.message}`);
+  }
+}
+
+// Success message göster
+function showSuccessMessage(message) {
+  const notification = document.createElement("div");
+  notification.className = "notification success";
+  notification.innerHTML = `
+    <span>✅ ${message}</span>
+    <button onclick="this.parentElement.remove()">×</button>
+  `;
+
+  document.body.appendChild(notification);
+
+  // 3 saniye sonra otomatik kaldır
+  setTimeout(() => {
+    if (notification.parentElement) {
+      notification.remove();
+    }
+  }, 3000);
+}
+
+// Error message göster
+function showErrorMessage(message) {
+  const notification = document.createElement("div");
+  notification.className = "notification error";
+  notification.innerHTML = `
+    <span>❌ ${message}</span>
+    <button onclick="this.parentElement.remove()">×</button>
+  `;
+
+  document.body.appendChild(notification);
+
+  // 5 saniye sonra otomatik kaldır
+  setTimeout(() => {
+    if (notification.parentElement) {
+      notification.remove();
+    }
+  }, 5000);
+}
+
+// Async file processing
+async function processFileAsync(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = async function (e) {
+      try {
+        const uploadData = {
+          image: e.target.result,
+          imageData: e.target.result, // Lambda compatibility için
+          fileName: `${Date.now()}_${file.name}`,
+          contentType: file.type,
+        };
+
+        const response = await uploadToAWS(uploadData);
+
+        if (response.success) {
+          const imageData = {
+            id: Date.now() + Math.random(),
+            src: e.target.result,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            awsFileName: response.fileName,
+            uploaded: true,
+          };
+
+          addImageToCollection(imageData);
+          resolve(response);
+        } else {
+          reject(new Error(response.error));
+        }
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// Batch upload sonucu göster
+function showBatchUploadResult(successCount, totalFiles) {
+  if (successCount === totalFiles) {
+    showSuccessMessage(`All ${totalFiles} images uploaded successfully!`);
+    // Upload başarılı olduğunda image list'i refresh et
+    setTimeout(() => {
+      loadImageList();
+    }, 1000);
+  } else if (successCount > 0) {
+    showSuccessMessage(
+      `${successCount}/${totalFiles} images uploaded successfully`
+    );
+    showErrorMessage(`${totalFiles - successCount} images failed to upload`);
+    // Partial success'te de refresh et
+    setTimeout(() => {
+      loadImageList();
+    }, 1000);
+  } else {
+    showErrorMessage("All uploads failed. Please try again.");
+  }
+}
+
+// Rebuild grid
+function rebuildGrid() {
+  gridContainer.innerHTML = "";
+
+  uploadedImages.forEach((imageData, index) => {
+    addImageToGridAtIndex(imageData, index);
+  });
+}
+
+// Add image to grid at specific index
+function addImageToGridAtIndex(imageData, index) {
+  const imageItem = document.createElement("div");
+  imageItem.className = "image-item";
+  imageItem.innerHTML = `
+        <img src="${imageData.src}" alt="${imageData.name}" onclick="showInCarousel(${index})">
+        <button class="delete-btn" onclick="deleteImage('${imageData.id}')" title="Sil">×</button>
+    `;
+
+  gridContainer.appendChild(imageItem);
 }
 
 // Add image to collection
@@ -216,27 +496,6 @@ function deleteImage(imageId) {
     updateCarousel();
     updateCarouselButtons();
   }
-}
-
-// Rebuild grid
-function rebuildGrid() {
-  gridContainer.innerHTML = "";
-
-  uploadedImages.forEach((imageData, index) => {
-    addImageToGridAtIndex(imageData, index);
-  });
-}
-
-// Add image to grid at specific index
-function addImageToGridAtIndex(imageData, index) {
-  const imageItem = document.createElement("div");
-  imageItem.className = "image-item";
-  imageItem.innerHTML = `
-        <img src="${imageData.src}" alt="${imageData.name}" onclick="showInCarousel(${index})">
-        <button class="delete-btn" onclick="deleteImage('${imageData.id}')" title="Sil">×</button>
-    `;
-
-  gridContainer.appendChild(imageItem);
 }
 
 // Show progress bar

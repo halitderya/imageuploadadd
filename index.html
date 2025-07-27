@@ -49,13 +49,25 @@
 
       <!-- Uploaded Images Grid -->
       <div class="images-grid" id="imagesGrid">
-        <h3>Uploaded Images</h3>
+        <div class="grid-header">
+          <h3>Uploaded Images</h3>
+          <button
+            class="refresh-btn"
+            onclick="loadImageList()"
+            title="Refresh image list"
+          >
+            🔄 Refresh
+          </button>
+        </div>
         <div class="grid-container" id="gridContainer">
           <!-- Images will be added here dynamically -->
         </div>
       </div>
     </div>
 
+    <button onclick="loadImageList()" class="load-list-btn">
+      Load Images from S3
+    </button>
     <script src="index.js"></script>
   </body>
 </html>

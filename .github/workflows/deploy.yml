@@ -24,6 +24,14 @@ jobs:
           role-to-assume: arn:aws:iam::871762481872:role/GitHubAction-AssumeRoleWithAction
           role-session-name: GitHub_to_AWS_via_FederatedOIDC
           aws-region: ${{ env.AWS_REGION }}
+      - name: Zip Lambda Upload Function
+        run: |
+          cd lambda/image_upload
+          zip -r ../../lambda_function_image_upload.zip index.mjs
+      - name: Zip Lambda Read Function
+        run: |
+          cd lambda/image_read
+          zip -r ../../lambda_function_image_read.zip index.mjs
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
         with:

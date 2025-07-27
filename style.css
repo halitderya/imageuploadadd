@@ -179,6 +179,35 @@ h1 {
   font-size: 1.5rem;
 }
 
+.grid-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.refresh-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+}
+
+.refresh-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.refresh-btn:active {
+  transform: translateY(0);
+}
+
 .grid-container {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -231,6 +260,54 @@ h1 {
 .delete-btn:hover {
   background: rgba(255, 59, 48, 1);
   transform: scale(1.1);
+}
+
+/* Notification styles */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 15px 20px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  z-index: 1000;
+  min-width: 300px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  animation: slideIn 0.3s ease-out;
+}
+
+.notification.success {
+  background: linear-gradient(135deg, #4caf50, #45a049);
+  border-left: 4px solid #2e7d32;
+}
+
+.notification.error {
+  background: linear-gradient(135deg, #f44336, #da190b);
+  border-left: 4px solid #c62828;
+}
+
+.notification button {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 10px;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* Responsive Design */

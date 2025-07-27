@@ -15,3 +15,9 @@ variable "environment" {
   type        = string
   default     = "dev"
 }
+
+variable "image_bucket" {
+  description = "The name of the S3 bucket for image upload"
+  type        = string
+  default     = "halit-imageupload-app-2025"
+}
