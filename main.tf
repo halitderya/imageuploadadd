@@ -36,6 +36,55 @@ resource "aws_s3_bucket_public_access_block" "public_access" {
   restrict_public_buckets = true
 }
 
+resource "aws_s3_bucket" "image_bucket" {
+  bucket = var.aws_s3_image_bucket
+
+  tags = {
+    Name        = "ImageUploadBucket"
+    Environment = var.environment
+  }
+
+}
+
+resource "aws_lambda_function" "image_upload_lambda" {
+  function_name = "imageUploadFunction"
+  s3_bucket     = aws_s3_bucket.image_upload_bucket.bucket
+  filename = "${path.module}/lambda_function.zip"
+  source_code_hash = filebase64sha256("${path.module}/lambda_function.zip")
+  
+  handler = "index.handler"
+  runtime = "nodejs18.x"
+
+  environment {
+    variables = {
+      BUCKET_NAME = aws_s3_bucket.image_upload_bucket.bucket
+    }
+  }
+
+  tags = {
+    Name        = "ImageUploadLambda"
+    Environment = var.environment
+  }
+}
+
+resource "aws_lambda_function_url" "image_upload_lambda_url" {
+  function_name      = aws_lambda_function.image_upload_lambda.function_name
+  authorization_type = "NONE"
+
+  cors {
+    allow_credentials = false
+    allow_origins     = ["*"]
+    allow_methods     = ["POST", "OPTIONS"]
+    allow_headers     = ["content-type", "accept"]
+    expose_headers    = []
+    max_age          = 86400
+  }
+}
+
+output "lambda_function_url" {
+  value = aws_lambda_function_url.image_upload_lambda_url.function_url
+}
+
 output "s3_bucket_name" {
   value = aws_s3_bucket.image_upload_bucket.bucket
 }
