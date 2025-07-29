@@ -53,7 +53,6 @@ resource "aws_iam_role" "MyFunction-role-49s2whj6" {
   },
   
 }
-
 ##################### ROLES END ###############
 resource "aws_s3_bucket_public_access_block" "public_access" {
   bucket = aws_s3_bucket.image_upload_bucket.id
