@@ -27,39 +27,7 @@ resource "aws_s3_bucket" "image_upload_bucket" {
   }
 }
 ##################### ROLES ###############
-resource "aws_iam_role" "GitHubAction-AssumeRoleWithAction" {
-  name = "GitHubAction-AssumeRoleWithAction"
-  max_session_duration= 3600
-  description = "Allows GitHub Actions to assume role with web identity for repository imageuploadadd"
 
-
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17"
-      "Statement": [
-         {
-            "Effect": "Allow",
-              "Principal": {
-               "Federated": "arn:aws:iam::871762481872:oidc-provider/token.actions.githubusercontent.com"
-                        },
-                        "Action": "sts:AssumeRoleWithWebIdentity",
-                        "Condition": {
-                            "StringEquals": {
-                                "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
-                            },
-                            "StringLike": {
-                                "token.actions.githubusercontent.com:sub": "repo:halitderya/imageuploadadd:*"
-                            }
-                        }
-                    }
-                ]
-  
-  })
-
-  tags = {
-    tag-key = "tag-value"
-  },
-  
-}
 resource "aws_iam_role" "MyFunction-role-49s2whj6" {
   name = "MyFunction-role-49s2whj6"
   max_session_duration= 3600
