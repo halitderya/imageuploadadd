@@ -1,6 +1,6 @@
 import { S3Client, ListObjectsV2Command } from "@aws-sdk/client-s3";
 
-const s3 = new S3Client({ region: "eu-west-2" });
+const s3 = new S3Client({ region: "eu-west-2" }); // Londra
 const BUCKET_NAME = "halit-imageupload-app-2025";
 
 export const handler = async (event) => {

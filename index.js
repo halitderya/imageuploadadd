@@ -1,11 +1,7 @@
-// Global variables
-
 const BUCKET_NAME = "halit-imageupload-app-2025";
 
 let uploadedImages = [];
 let currentImageIndex = 0;
-
-// DOM elements
 const fileInput = document.getElementById("fileInput");
 const uploadArea = document.getElementById("uploadArea");
 const uploadProgress = document.getElementById("uploadProgress");
@@ -35,9 +31,6 @@ function setupEventListeners() {
 
   // Drag and drop events
   uploadArea.addEventListener("click", () => fileInput.click());
-  uploadArea.addEventListener("dragover", handleDragOver);
-  uploadArea.addEventListener("dragleave", handleDragLeave);
-  uploadArea.addEventListener("drop", handleDrop);
 
   // Prevent default drag behaviors on document
   document.addEventListener("dragover", (e) => e.preventDefault());
@@ -49,33 +42,6 @@ function handleFileSelect(event) {
   const files = Array.from(event.target.files);
   if (files.length > 0) {
     processFiles(files);
-  }
-}
-
-// Handle drag over
-function handleDragOver(event) {
-  event.preventDefault();
-  uploadArea.classList.add("dragover");
-}
-
-// Handle drag leave
-function handleDragLeave(event) {
-  event.preventDefault();
-  uploadArea.classList.remove("dragover");
-}
-
-// Handle drop
-function handleDrop(event) {
-  event.preventDefault();
-  uploadArea.classList.remove("dragover");
-
-  const files = Array.from(event.dataTransfer.files);
-  const imageFiles = files.filter((file) => file.type.startsWith("image/"));
-
-  if (imageFiles.length > 0) {
-    processFiles(imageFiles);
-  } else {
-    alert("Only image files, please!");
   }
 }
 
@@ -104,14 +70,12 @@ function processFiles(files) {
       if (processedCount === totalFiles) {
         setTimeout(() => {
           hideProgress();
-          showBatchUploadResult(successCount, totalFiles);
         }, 500);
       }
-    }, index * 1000); // 1 saniye delay (rate limiting)
+    }, index * 1000);
   });
 }
 
-// Process individual file - AWS Lambda ile
 function processFile(file) {
   const reader = new FileReader();
 
@@ -131,11 +95,11 @@ function processFile(file) {
       if (response.success) {
         const imageData = {
           id: Date.now() + Math.random(),
-          src: e.target.result, // Local preview için
+          src: e.target.result,
           name: file.name,
           size: file.size,
           type: file.type,
-          awsFileName: response.fileName, // AWS'deki dosya adı
+          awsFileName: response.fileName,
           uploaded: true,
         };
 
@@ -153,20 +117,12 @@ function processFile(file) {
   reader.readAsDataURL(file);
 }
 
-// AWS Lambda'ya upload fonksiyonu
 async function uploadToAWS(uploadData) {
   try {
     // Validate upload data
     if (!uploadData.image || !uploadData.fileName) {
       throw new Error("Missing required upload data");
     }
-
-    console.log("Uploading to AWS:", {
-      fileName: uploadData.fileName,
-      contentType: uploadData.contentType,
-      imageSize: uploadData.image.length,
-      endpoint: AWS_LAMBDA_UPLOAD_ENDPOINT,
-    });
 
     const response = await fetch(AWS_LAMBDA_UPLOAD_ENDPOINT, {
       method: "POST",
@@ -192,9 +148,6 @@ async function uploadToAWS(uploadData) {
 
     const result = await response.json();
 
-    // Lambda response formatını kontrol et
-    console.log("Upload Response:", result); // Debug için
-
     return {
       success: true,
       fileName: result.fileName || result.key || uploadData.fileName,
@@ -210,11 +163,8 @@ async function uploadToAWS(uploadData) {
   }
 }
 
-// Load image list from AWS Lambda (S3)
 async function loadImageList() {
   try {
-    console.log("Loading image list from:", AWS_LAMBDA_LIST_ENDPOINT);
-
     const response = await fetch(AWS_LAMBDA_LIST_ENDPOINT, {
       method: "GET",
       headers: {
@@ -228,8 +178,6 @@ async function loadImageList() {
     }
 
     const result = await response.json();
-
-    console.log("AWS Response:", result); // Debug için
 
     // AWS response structure'ına göre handle et
     let imageFiles = [];
@@ -253,8 +201,7 @@ async function loadImageList() {
       }));
 
       rebuildGrid();
-      updateCarousel();
-      updateCarouselButtons();
+
       showSuccessMessage(`${imageFiles.length} images loaded from S3.`);
     } else {
       showSuccessMessage("No images found in S3 bucket.");
@@ -281,7 +228,6 @@ function showSuccessMessage(message) {
 
   document.body.appendChild(notification);
 
-  // 3 saniye sonra otomatik kaldır
   setTimeout(() => {
     if (notification.parentElement) {
       notification.remove();
@@ -289,7 +235,6 @@ function showSuccessMessage(message) {
   }, 3000);
 }
 
-// Error message göster
 function showErrorMessage(message) {
   const notification = document.createElement("div");
   notification.className = "notification error";
@@ -300,7 +245,6 @@ function showErrorMessage(message) {
 
   document.body.appendChild(notification);
 
-  // 5 saniye sonra otomatik kaldır
   setTimeout(() => {
     if (notification.parentElement) {
       notification.remove();
@@ -308,7 +252,6 @@ function showErrorMessage(message) {
   }, 5000);
 }
 
-// Async file processing
 async function processFileAsync(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -317,7 +260,7 @@ async function processFileAsync(file) {
       try {
         const uploadData = {
           image: e.target.result,
-          imageData: e.target.result, // Lambda compatibility için
+          imageData: e.target.result,
           fileName: `${Date.now()}_${file.name}`,
           contentType: file.type,
         };
@@ -350,29 +293,6 @@ async function processFileAsync(file) {
   });
 }
 
-// Batch upload sonucu göster
-function showBatchUploadResult(successCount, totalFiles) {
-  if (successCount === totalFiles) {
-    showSuccessMessage(`All ${totalFiles} images uploaded successfully!`);
-    // Upload başarılı olduğunda image list'i refresh et
-    setTimeout(() => {
-      loadImageList();
-    }, 1000);
-  } else if (successCount > 0) {
-    showSuccessMessage(
-      `${successCount}/${totalFiles} images uploaded successfully`
-    );
-    showErrorMessage(`${totalFiles - successCount} images failed to upload`);
-    // Partial success'te de refresh et
-    setTimeout(() => {
-      loadImageList();
-    }, 1000);
-  } else {
-    showErrorMessage("All uploads failed. Please try again.");
-  }
-}
-
-// Rebuild grid
 function rebuildGrid() {
   gridContainer.innerHTML = "";
 
@@ -387,13 +307,11 @@ function addImageToGridAtIndex(imageData, index) {
   imageItem.className = "image-item";
   imageItem.innerHTML = `
         <img src="${imageData.src}" alt="${imageData.name}" onclick="showInCarousel(${index})">
-        <button class="delete-btn" onclick="deleteImage('${imageData.id}')" title="Sil">×</button>
     `;
 
   gridContainer.appendChild(imageItem);
 }
 
-// Add image to collection
 function addImageToCollection(imageData) {
   uploadedImages.push(imageData);
   addImageToGrid(imageData);
@@ -401,7 +319,6 @@ function addImageToCollection(imageData) {
   updateCarouselButtons();
 }
 
-// Add image to grid
 function addImageToGrid(imageData) {
   const imageItem = document.createElement("div");
   imageItem.className = "image-item new";
@@ -409,9 +326,7 @@ function addImageToGrid(imageData) {
         <img src="${imageData.src}" alt="${
     imageData.name
   }" onclick="showInCarousel(${uploadedImages.length - 1})">
-        <button class="delete-btn" onclick="deleteImage('${
-          imageData.id
-        }')" title="Sil">×</button>
+
     `;
 
   gridContainer.appendChild(imageItem);
@@ -421,7 +336,6 @@ function addImageToGrid(imageData) {
   }, 500);
 }
 
-// Update carousel
 function updateCarousel() {
   if (uploadedImages.length === 0) {
     carousel.innerHTML = `
@@ -465,7 +379,6 @@ function nextImage() {
   updateCarousel();
 }
 
-// Update carousel navigation buttons
 function updateCarouselButtons() {
   if (uploadedImages.length <= 1) {
     prevBtn.style.display = "none";
@@ -476,29 +389,6 @@ function updateCarouselButtons() {
   }
 }
 
-// Delete image
-function deleteImage(imageId) {
-  const imageIndex = uploadedImages.findIndex((img) => img.id === imageId);
-
-  if (imageIndex !== -1) {
-    // Remove from array
-    uploadedImages.splice(imageIndex, 1);
-
-    // Update current index if necessary
-    if (currentImageIndex >= uploadedImages.length) {
-      currentImageIndex = Math.max(0, uploadedImages.length - 1);
-    }
-
-    // Rebuild grid
-    rebuildGrid();
-
-    // Update carousel
-    updateCarousel();
-    updateCarouselButtons();
-  }
-}
-
-// Show progress bar
 function showProgress() {
   uploadProgress.style.display = "block";
   progressBar.style.width = "0%";
@@ -512,60 +402,4 @@ function updateProgress(percentage) {
 // Hide progress bar
 function hideProgress() {
   uploadProgress.style.display = "none";
-}
-
-// Keyboard navigation
-document.addEventListener("keydown", function (event) {
-  if (uploadedImages.length === 0) return;
-
-  switch (event.key) {
-    case "ArrowLeft":
-      previousImage();
-      break;
-    case "ArrowRight":
-      nextImage();
-      break;
-    case "Escape":
-      // Could be used to close fullscreen view if implemented
-      break;
-  }
-});
-
-// Utility functions
-function formatFileSize(bytes) {
-  if (bytes === 0) return "0 Bytes";
-
-  const k = 1024;
-  const sizes = ["Bytes", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
-}
-
-// Optional: Add touch/swipe support for mobile
-let touchStartX = 0;
-let touchEndX = 0;
-
-carouselContainer.addEventListener("touchstart", function (event) {
-  touchStartX = event.changedTouches[0].screenX;
-});
-
-carouselContainer.addEventListener("touchend", function (event) {
-  touchEndX = event.changedTouches[0].screenX;
-  handleSwipe();
-});
-
-function handleSwipe() {
-  const swipeThreshold = 50;
-  const difference = touchStartX - touchEndX;
-
-  if (Math.abs(difference) > swipeThreshold) {
-    if (difference > 0) {
-      // Swipe left - next image
-      nextImage();
-    } else {
-      // Swipe right - previous image
-      previousImage();
-    }
-  }
 }
